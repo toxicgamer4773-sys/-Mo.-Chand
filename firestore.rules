@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    // Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User Profile Validation & Rules
+    function isValidUserProfile(data, userId) {
+      return data.userId == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (!('role' in data) || (data.role is string && data.role.size() <= 50)) &&
+             (!('nickname' in data) || (data.nickname is string && data.nickname.size() <= 50)) &&
+             (!('sarcasmLevel' in data) || (data.sarcasmLevel is number && data.sarcasmLevel >= 1 && data.sarcasmLevel <= 5)) &&
+             (!('humorLevel' in data) || (data.humorLevel is number && data.humorLevel >= 1 && data.humorLevel <= 5)) &&
+             (!('voiceName' in data) || (data.voiceName is string && data.voiceName.size() <= 50)) &&
+             (!('customInstructions' in data) || (data.customInstructions is string && data.customInstructions.size() <= 2000));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Disallow listing user root directory
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId) && incoming().userId == existing().userId;
+      allow delete: if isOwner(userId);
+
+      // Long-Term Memories Subcollection
+      function isValidMemory(data, userId) {
+        return data.userId == userId &&
+               data.category in ['preference', 'fact', 'work', 'personal', 'rule'] &&
+               data.key is string && data.key.size() > 0 && data.key.size() <= 150 &&
+               data.fact is string && data.fact.size() > 0 && data.fact.size() <= 1000 &&
+               (!('importance' in data) || (data.importance is number && data.importance >= 1 && data.importance <= 5));
+      }
+
+      match /memories/{memoryId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(memoryId) && isValidMemory(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(memoryId) && isValidMemory(incoming(), userId) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId);
+      }
+
+      // Chat Sessions Subcollection
+      function isValidSession(data, userId) {
+        return data.userId == userId &&
+               data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+               (!('messageCount' in data) || (data.messageCount is number && data.messageCount >= 0));
+      }
+
+      match /sessions/{sessionId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(sessionId) && isValidSession(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(sessionId) && isValidSession(incoming(), userId) && incoming().userId == existing().userId;
+        allow delete: if isOwner(userId);
+
+        // Chat Messages Subcollection
+        function isValidMessage(data, userId, sessId) {
+          return data.userId == userId &&
+                 data.sessionId == sessId &&
+                 data.sender in ['user', 'zoya'] &&
+                 data.text is string && data.text.size() > 0 && data.text.size() <= 5000;
+        }
+
+        match /messages/{messageId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId) && isValidId(messageId) && isValidMessage(incoming(), userId, sessionId);
+          allow update: if isOwner(userId) && isValidId(messageId) && isValidMessage(incoming(), userId, sessionId) && incoming().userId == existing().userId;
+          allow delete: if isOwner(userId);
+        }
+      }
+    }
+  }
+}

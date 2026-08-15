@@ -1,0 +1,202 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and AI assistant persona preferences for the creator or user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique identifier of the user matching Firebase Auth UID.",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user/creator (e.g. Chandu).",
+          "maxLength": 100
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user, such as Creator or User.",
+          "maxLength": 50
+        },
+        "nickname": {
+          "type": "string",
+          "description": "Preferred nickname for the assistant to address the user.",
+          "maxLength": 50
+        },
+        "sarcasmLevel": {
+          "type": "number",
+          "description": "Sarcasm and sass level from 1 to 5."
+        },
+        "humorLevel": {
+          "type": "number",
+          "description": "Humor level from 1 to 5."
+        },
+        "voiceName": {
+          "type": "string",
+          "description": "Selected voice name for TTS and Live Audio.",
+          "maxLength": 50
+        },
+        "customInstructions": {
+          "type": "string",
+          "description": "Custom prompt instructions or personality quirks requested by user.",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": ["userId", "name", "createdAt", "updatedAt"]
+    },
+    "UserMemory": {
+      "title": "UserMemory",
+      "description": "Long-term memory entries storing preferences, facts, and rules about the user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the memory item.",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID.",
+          "maxLength": 128
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of memory: preference, fact, work, personal, rule.",
+          "enum": ["preference", "fact", "work", "personal", "rule"],
+          "maxLength": 30
+        },
+        "key": {
+          "type": "string",
+          "description": "Short memory title or topic key.",
+          "maxLength": 150
+        },
+        "fact": {
+          "type": "string",
+          "description": "Detailed fact or preference remembered by the assistant.",
+          "maxLength": 1000
+        },
+        "importance": {
+          "type": "number",
+          "description": "Importance score from 1 to 5."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": ["id", "userId", "category", "key", "fact", "createdAt", "updatedAt"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "A conversation session containing chat messages and metadata.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique session identifier.",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID.",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Session topic summary or title.",
+          "maxLength": 200
+        },
+        "messageCount": {
+          "type": "number",
+          "description": "Number of messages in the session."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp."
+        }
+      },
+      "required": ["id", "userId", "title", "createdAt", "updatedAt"]
+    },
+    "ChatMessageItem": {
+      "title": "ChatMessageItem",
+      "description": "A single message within a conversation session.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique message identifier.",
+          "maxLength": 128
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Parent session identifier.",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID.",
+          "maxLength": 128
+        },
+        "sender": {
+          "type": "string",
+          "description": "Sender of the message: user or zoya.",
+          "enum": ["user", "zoya"],
+          "maxLength": 20
+        },
+        "text": {
+          "type": "string",
+          "description": "Content of the message.",
+          "maxLength": 5000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Message creation timestamp."
+        }
+      },
+      "required": ["id", "sessionId", "userId", "sender", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile and assistant configuration per user."
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": "UserMemory",
+      "description": "Long-term memories, facts, and preferences remembered about the user."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "ChatSession",
+      "description": "Chat session threads for the user."
+    },
+    "/users/{userId}/sessions/{sessionId}/messages/{messageId}": {
+      "schema": "ChatMessageItem",
+      "description": "Individual messages belonging to a chat session."
+    }
+  }
+}
