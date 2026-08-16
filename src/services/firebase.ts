@@ -2,8 +2,7 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User, signInAnonymously } from "firebase/auth";
 import { 
   initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager 
+  memoryLocalCache 
 } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 
@@ -11,11 +10,9 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const auth = getAuth(app);
 
-// Initialize Firestore with local caching and offline tolerance
+// Initialize Firestore with memory cache (prevents IndexedDB "Database is closing/hidden" crashes on mobile browsers & iframes)
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
+  localCache: memoryLocalCache(),
 }, firebaseConfig.firestoreDatabaseId);
 
 export const googleProvider = new GoogleAuthProvider();
@@ -47,14 +44,16 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
-  const isOfflineOrUnavailable = error instanceof Error && (
-    error.message.includes("offline") || 
-    error.message.includes("unavailable") ||
-    error.message.includes("network")
-  );
+  const errMsg = error instanceof Error ? error.message : String(error);
+  const isIgnorable = 
+    errMsg.includes("offline") || 
+    errMsg.includes("unavailable") ||
+    errMsg.includes("network") ||
+    errMsg.includes("closing") ||
+    errMsg.includes("hidden");
 
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMsg,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -70,8 +69,8 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
 
-  if (isOfflineOrUnavailable) {
-    console.warn("Firestore offline/temporary notice:", errInfo.error);
+  if (isIgnorable) {
+    console.warn("Firestore transient network/state notice:", errInfo.error);
   } else {
     console.error("Firestore Error: ", JSON.stringify(errInfo));
   }
